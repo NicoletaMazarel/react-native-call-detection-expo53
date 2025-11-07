@@ -1,18 +1,28 @@
-declare module 'react-native-call-detection' {
-  export type Event = 'Disconnected' | 'Connected' | 'Incoming' | 'Dialing' | 'Offhook' | 'Missed';
+declare module "react-native-call-detection" {
+  export type Event = "Disconnected" | "Incoming" | "Offhook" | "Missed";
 
-  export type CallDetectorManagerCallback = (event: Event, phoneNumber: string) => void;
-
-  export type PermissionDeniedCallback = () => void;
+  export type CallDetectorManagerCallback = (
+    event: Event,
+    phoneNumber: string | null
+  ) => void;
 
   export interface PermissionMessage {
     title: string;
     message: string;
   }
 
-  export default class CallDetectorManager {
-    constructor(callback: CallDetectorManagerCallback, readPhoneNumberAndroid?: boolean, permissionDeniedCallback?: PermissionDeniedCallback, permissionMessage?: PermissionMessage);
+  export type PermissionDeniedCallback = (reason?: string) => void;
 
-    dispose: () => void;
+  declare class CallDetectorManager {
+    constructor(
+      callback: CallDetectorManagerCallback,
+      readPhoneNumberAndroid?: boolean,
+      permissionDeniedCallback?: PermissionDeniedCallback,
+      permissionMessage?: PermissionMessage
+    );
+
+    dispose(): void;
   }
+
+  export default CallDetectorManager;
 }

@@ -1,76 +1,82 @@
-/*
-* @providesModule react-native-call-detection
-*/
 import {
   NativeModules,
   NativeEventEmitter,
   Platform,
-  PermissionsAndroid
-} from 'react-native'
-export const permissionDenied = 'PERMISSION DENIED'
+  PermissionsAndroid,
+} from "react-native";
 
-const BatchedBridge = require('react-native/Libraries/BatchedBridge/BatchedBridge')
+export const permissionDenied = "PERMISSION DENIED";
 
-const NativeCallDetector = NativeModules.CallDetectionManager
-const NativeCallDetectorAndroid = NativeModules.CallDetectionManagerAndroid
+const NativeCallDetectorAndroid = NativeModules.CallDetectionManagerAndroid;
+const NativeCallDetectorIOS = NativeModules.CallDetectionManager;
 
-var CallStateUpdateActionModule = require('./CallStateUpdateActionModule')
-BatchedBridge.registerCallableModule('CallStateUpdateActionModule', CallStateUpdateActionModule)
+const eventEmitter = new NativeEventEmitter(
+  Platform.OS === "ios" ? NativeCallDetectorIOS : NativeCallDetectorAndroid
+);
 
-// https://stackoverflow.com/questions/13154445/how-to-get-phone-number-from-an-incoming-call : Amjad Alwareh's answer.
-const requestPermissionsAndroid = (permissionMessage) => {
-  const requiredPermission = Platform.constants.Release >= 9
-    ? PermissionsAndroid.PERMISSIONS.READ_CALL_LOG
-    : PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE
-  return PermissionsAndroid.check(requiredPermission)
-    .then((gotPermission) => gotPermission
-      ? true
-      : PermissionsAndroid.request(requiredPermission, permissionMessage)
-        .then((result) => result === PermissionsAndroid.RESULTS.GRANTED)
-    )
-}
+// Request permission on Android 9+
+const requestPermissionsAndroid = async (permissionMessage) => {
+  const requiredPermission =
+    Platform.constants.Release >= 9
+      ? PermissionsAndroid.PERMISSIONS.READ_CALL_LOG
+      : PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE;
+
+  const granted = await PermissionsAndroid.check(requiredPermission);
+  if (granted) return true;
+
+  const result = await PermissionsAndroid.request(
+    requiredPermission,
+    permissionMessage
+  );
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+};
 
 class CallDetectorManager {
-
   subscription;
-  callback
-  constructor(callback, readPhoneNumberAndroid = false, permissionDeniedCallback = () => { }, permissionMessage = {
-    title: 'Phone State Permission',
-    message: 'This app needs access to your phone state in order to react and/or to adapt to incoming calls.'
-  }) {
-    this.callback = callback
-    if (Platform.OS === 'ios') {
-      NativeCallDetector && NativeCallDetector.startListener()
-      this.subscription = new NativeEventEmitter(NativeCallDetector)
-      this.subscription.addListener('PhoneCallStateUpdate', callback);
+  callback;
+
+  constructor(
+    callback,
+    readPhoneNumberAndroid = false,
+    permissionDeniedCallback = () => {},
+    permissionMessage = {
+      title: "Phone State Permission",
+      message:
+        "This app needs access to your phone state in order to react and/or adapt to incoming calls.",
     }
-    else {
-      if (NativeCallDetectorAndroid) {
+  ) {
+    this.callback = callback;
+
+    if (Platform.OS === "ios") {
+      NativeCallDetectorIOS?.startListener();
+      this.subscription = eventEmitter.addListener(
+        "PhoneCallStateUpdate",
+        callback
+      );
+    } else {
+      (async () => {
         if (readPhoneNumberAndroid) {
-
-          requestPermissionsAndroid(permissionMessage)
-            .then((permissionGrantedReadState) => {
-              if (!permissionGrantedReadState) {
-                permissionDeniedCallback(permissionDenied)
-              }
-            })
-            .catch(permissionDeniedCallback)
-
+          const ok = await requestPermissionsAndroid(permissionMessage);
+          if (!ok) permissionDeniedCallback(permissionDenied);
         }
-        NativeCallDetectorAndroid.startListener();
-      }
-      CallStateUpdateActionModule.callback = callback
+        NativeCallDetectorAndroid?.startListener();
+        this.subscription = eventEmitter.addListener(
+          "PhoneCallStateUpdate",
+          callback
+        );
+      })();
     }
   }
 
   dispose() {
-    NativeCallDetector && NativeCallDetector.stopListener()
-    NativeCallDetectorAndroid && NativeCallDetectorAndroid.stopListener()
-    CallStateUpdateActionModule.callback = undefined
+    NativeCallDetectorIOS?.stopListener();
+    NativeCallDetectorAndroid?.stopListener();
+
     if (this.subscription) {
-      this.subscription.removeAllListeners('PhoneCallStateUpdate');
-      this.subscription = undefined
+      this.subscription.remove();
+      this.subscription = undefined;
     }
   }
 }
-export default module.exports = CallDetectorManager;
+
+export default CallDetectorManager;
