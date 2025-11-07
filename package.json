@@ -1,23 +1,27 @@
 {
   "name": "react-native-call-detection",
-  "version": "1.8.3",
-  "description": "Get different phone call states for iOS and Android along with incoming phone number(just for android)",
+  "version": "1.8.4-expo53",
+  "description": "Get different phone call states for iOS and Android along with incoming phone number(just for android) - Expo 53 compatible",
   "main": "index.js",
   "types": "index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/priteshrnandgaonkar/react-native-call-detection"
+    "url": "https://github.com/NicoletaMazarel/react-native-call-detection-expo53"
   },
   "keywords": [
     "react-native",
     "call",
     "detection",
     "iOS",
-    "android"
+    "android",
+    "expo"
   ],
-  "author": "Pritesh Nandgaonkar <prit.nandgaonkar@gmail.com> (https://github.com/priteshrnandgaonkar)",
+  "author": "NicoletaMazarel",
   "license": "MIT",
   "peerDependencies": {
-    "react-native": ">=0.26.0"
+    "react-native": ">=0.72.0"
+  },
+  "devDependencies": {
+    "react-native": "^0.73.0"
   }
 }
