@@ -60,9 +60,19 @@ class CallDetectorManager {
           if (!ok) permissionDeniedCallback(permissionDenied);
         }
         NativeCallDetectorAndroid?.startListener();
+
         this.subscription = eventEmitter.addListener(
           "PhoneCallStateUpdate",
-          callback
+          (payload) => {
+            if (typeof payload === "string") {
+              // Format: "Incoming|+123456789"
+              const [event, phoneNumber] = payload.split("|");
+              callback(event, phoneNumber || null);
+            } else {
+              // Fallback pentru compatibilitate
+              callback(payload, null);
+            }
+          }
         );
       })();
     }
