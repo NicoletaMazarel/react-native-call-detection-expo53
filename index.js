@@ -10,9 +10,29 @@ export const permissionDenied = "PERMISSION DENIED";
 const NativeCallDetectorAndroid = NativeModules.CallDetectionManagerAndroid;
 const NativeCallDetectorIOS = NativeModules.CallDetectionManager;
 
-const eventEmitter = new NativeEventEmitter(
-  Platform.OS === "ios" ? NativeCallDetectorIOS : NativeCallDetectorAndroid
-);
+// Create event emitter only if native module exists and has the required methods
+const createEventEmitter = () => {
+  const nativeModule =
+    Platform.OS === "ios" ? NativeCallDetectorIOS : NativeCallDetectorAndroid;
+
+  if (!nativeModule) {
+    console.warn("CallDetection native module not found");
+    return null;
+  }
+
+  // Check if native module has the required methods for NativeEventEmitter
+  if (nativeModule.addListener && nativeModule.removeListeners) {
+    return new NativeEventEmitter(nativeModule);
+  } else {
+    console.warn(
+      "CallDetection native module does not support NativeEventEmitter interface"
+    );
+    // Fallback: create event emitter with the module anyway (may still work)
+    return new NativeEventEmitter(nativeModule);
+  }
+};
+
+const eventEmitter = createEventEmitter();
 
 // Request permission on Android 9+
 const requestPermissionsAndroid = async (permissionMessage) => {
@@ -49,10 +69,12 @@ class CallDetectorManager {
 
     if (Platform.OS === "ios") {
       NativeCallDetectorIOS?.startListener();
-      this.subscription = eventEmitter.addListener(
-        "PhoneCallStateUpdate",
-        callback
-      );
+      if (eventEmitter) {
+        this.subscription = eventEmitter.addListener(
+          "PhoneCallStateUpdate",
+          callback
+        );
+      }
     } else {
       (async () => {
         if (readPhoneNumberAndroid) {
@@ -61,19 +83,24 @@ class CallDetectorManager {
         }
         NativeCallDetectorAndroid?.startListener();
 
-        this.subscription = eventEmitter.addListener(
-          "PhoneCallStateUpdate",
-          (payload) => {
-            if (typeof payload === "string") {
-              // Format: "Incoming|+123456789"
-              const [event, phoneNumber] = payload.split("|");
-              callback(event, phoneNumber || null);
-            } else {
-              // Fallback pentru compatibilitate
-              callback(payload, null);
+        if (eventEmitter) {
+          // Parse event payload correctly
+          this.subscription = eventEmitter.addListener(
+            "PhoneCallStateUpdate",
+            (payload) => {
+              console.log("CallDetector payload:", payload);
+
+              if (typeof payload === "string") {
+                const [event, phoneNumber] = payload.split("|");
+                callback(event, phoneNumber || null);
+              } else {
+                callback(payload, null);
+              }
             }
-          }
-        );
+          );
+        } else {
+          console.warn("CallDetection event emitter not available");
+        }
       })();
     }
   }
