@@ -66,3 +66,5 @@ CallDetectionExample/.DS_Store
 CallDetectionExample/android/local.properties
 
 *.swp
+
+.npmrc
